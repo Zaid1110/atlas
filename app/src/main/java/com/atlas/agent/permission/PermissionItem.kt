@@ -13,6 +13,7 @@ enum class PermissionKey {
     Notifications,
     Accessibility,
     ScreenCapture,
+    BatteryOptimization,
     Storage,
     Internet,
     Network

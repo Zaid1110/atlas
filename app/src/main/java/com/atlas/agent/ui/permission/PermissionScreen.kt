@@ -132,6 +132,7 @@ fun PermissionScreen(
                                     }
                                 }
                                 PermissionKey.ScreenCapture,
+                                PermissionKey.BatteryOptimization,
                                 PermissionKey.Storage,
                                 PermissionKey.Internet,
                                 PermissionKey.Network -> openAppSettings(context)

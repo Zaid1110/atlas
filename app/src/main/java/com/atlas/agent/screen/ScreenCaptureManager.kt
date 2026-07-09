@@ -9,8 +9,10 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.SystemClock
 import androidx.core.content.getSystemService
 import com.atlas.agent.frame.FrameDispatcher
+import com.atlas.agent.streaming.StreamSession
 
 object ScreenCaptureManager {
     private const val VIRTUAL_DISPLAY_NAME = "AtlasScreenCapture"
@@ -20,7 +22,8 @@ object ScreenCaptureManager {
     private var imageReader: ImageReader? = null
     private var captureThread: HandlerThread? = null
     private var captureHandler: Handler? = null
-    private val frameProcessor = FrameProcessor(targetFramesPerSecond = 10)
+    private val frameProcessor = FrameProcessor()
+    private var lastFrameProcessMillis: Long = 0L
 
     @Volatile
     var state: ScreenCaptureState = ScreenCaptureState.NotGranted
@@ -59,6 +62,8 @@ object ScreenCaptureManager {
         val projection = mediaProjection ?: return
         if (state == ScreenCaptureState.Capturing) return
 
+        StreamSession.start()
+
         val metrics = context.resources.displayMetrics
         val width = metrics.widthPixels
         val height = metrics.heightPixels
@@ -77,12 +82,23 @@ object ScreenCaptureManager {
         ).also { reader ->
             reader.setOnImageAvailableListener(
                 { availableReader ->
+                    val now = SystemClock.elapsedRealtime()
+                    if (now - lastFrameProcessMillis < 100L) {
+                        availableReader.acquireLatestImage()?.close()
+                        return@setOnImageAvailableListener
+                    }
+                    lastFrameProcessMillis = now
+
                     val image = availableReader.acquireLatestImage() ?: return@setOnImageAvailableListener
                     image.use {
-                        frameProcessor.process(it)?.let { jpeg ->
-                            latestFrame = jpeg
-                            FrameDispatcher.dispatch(jpeg)
-                        }
+                        val jpeg = frameProcessor.process(it)
+                        latestFrame = jpeg
+                        FrameDispatcher.dispatch(jpeg)
+                        StreamSession.acceptFrame(
+                            jpegFrame = jpeg,
+                            width = image.width,
+                            height = image.height
+                        )
                     }
                 },
                 handler
@@ -106,6 +122,8 @@ object ScreenCaptureManager {
     }
 
     fun stopCapture() {
+        StreamSession.stop()
+
         virtualDisplay?.release()
         virtualDisplay = null
 
@@ -113,6 +131,7 @@ object ScreenCaptureManager {
         imageReader = null
 
         frameProcessor.reset()
+        lastFrameProcessMillis = 0L
 
         captureThread?.quitSafely()
         captureThread = null
@@ -122,6 +141,8 @@ object ScreenCaptureManager {
             state = ScreenCaptureState.Ready
         }
     }
+
+    fun latestFrameBytes(): ByteArray? = latestFrame?.copyOf()
 
     fun releaseProjection() {
         stopCapture()

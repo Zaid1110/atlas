@@ -17,6 +17,8 @@ class AtlasForegroundService : Service() {
         super.onCreate()
         isRunning = true
         NotificationHelper.createChannel(this)
+        LocalDemoServer.initialize(this)
+        LocalDemoServer.startServer()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -26,6 +28,7 @@ class AtlasForegroundService : Service() {
 
     override fun onDestroy() {
         isRunning = false
+        LocalDemoServer.stopServer()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }

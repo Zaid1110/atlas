@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import com.atlas.agent.screen.ScreenCaptureManager
@@ -39,8 +40,14 @@ object PermissionManager {
             ),
             PermissionItem(
                 key = PermissionKey.ScreenCapture,
-                title = "Screen Capture",
+                title = "Media Projection",
                 state = stateFor(ScreenCaptureManager.state != ScreenCaptureState.NotGranted),
+                action = PermissionAction.OpenSettings
+            ),
+            PermissionItem(
+                key = PermissionKey.BatteryOptimization,
+                title = "Battery Optimization",
+                state = stateFor(isBatteryOptimizationIgnored(context)),
                 action = PermissionAction.OpenSettings
             ),
             PermissionItem(
@@ -85,6 +92,11 @@ object PermissionManager {
 
     fun isNotificationListenerEnabled(context: Context): Boolean {
         return isNotificationPermissionGranted(context)
+    }
+
+    fun isBatteryOptimizationIgnored(context: Context): Boolean {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        return powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true
     }
 
     private fun check(context: Context, permission: String): Boolean {
