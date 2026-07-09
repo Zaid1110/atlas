@@ -3,6 +3,7 @@ package com.atlas.agent.permission
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import com.atlas.agent.screen.ScreenCaptureManager
@@ -27,7 +28,7 @@ object PermissionManager {
             PermissionItem(
                 key = PermissionKey.Notifications,
                 title = "Notifications",
-                state = stateFor(isNotificationListenerEnabled(context)),
+                state = stateFor(isNotificationPermissionGranted(context)),
                 action = PermissionAction.OpenSettings
             ),
             PermissionItem(
@@ -74,15 +75,16 @@ object PermissionManager {
         }
     }
 
-    fun isNotificationListenerEnabled(context: Context): Boolean {
-        val enabledListeners = Settings.Secure.getString(
-            context.contentResolver,
-            "enabled_notification_listeners"
-        ) ?: return false
-
-        return enabledListeners.split(':').any { listener ->
-            listener.startsWith("${context.packageName}/", ignoreCase = true)
+    fun isNotificationPermissionGranted(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            true
+        } else {
+            check(context, Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    fun isNotificationListenerEnabled(context: Context): Boolean {
+        return isNotificationPermissionGranted(context)
     }
 
     private fun check(context: Context, permission: String): Boolean {

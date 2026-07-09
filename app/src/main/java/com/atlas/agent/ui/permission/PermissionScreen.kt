@@ -3,6 +3,7 @@ package com.atlas.agent.ui.permission
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -52,6 +53,12 @@ fun PermissionScreen(
     }
 
     val microphoneLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) {
+        refreshPermissions()
+    }
+
+    val notificationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) {
         refreshPermissions()
@@ -115,7 +122,15 @@ fun PermissionScreen(
                                     }
                                 }
                                 PermissionKey.Accessibility -> openAccessibilitySettings(context)
-                                PermissionKey.Notifications -> openNotificationListenerSettings(context)
+                                PermissionKey.Notifications -> {
+                                    if (it.state == PermissionState.Granted) {
+                                        openNotificationSettings(context)
+                                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    } else {
+                                        openAppSettings(context)
+                                    }
+                                }
                                 PermissionKey.ScreenCapture,
                                 PermissionKey.Storage,
                                 PermissionKey.Internet,
@@ -133,8 +148,11 @@ private fun openAccessibilitySettings(context: Context) {
     context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
 }
 
-private fun openNotificationListenerSettings(context: Context) {
-    context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+private fun openNotificationSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+    }
+    context.startActivity(intent)
 }
 
 private fun openAppSettings(context: Context) {
